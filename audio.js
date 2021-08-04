@@ -67,7 +67,7 @@ function locateOnePatterns() {
 	}
 
 	levelMap.set(1, map);
-	console.log(`locateOnePatterns: ${unique} ${repeats} END`);
+	console.log(`locateOnePatterns: level 1 count ${repeats}`);
 }
 
 function locateNextPatterns(level) {
@@ -109,7 +109,7 @@ function locateNextPatterns(level) {
     }
 
     levelMap.set(level + 1, nmap);
-    //console.log(`locateNextPatterns: ${level} ${unique} ${repeats} END`);
+    //console.log(`locateNextPatterns: ${level} ${unique} ${repeats}`);
 
     //console.log("locateNextPatterns END");
 }
@@ -128,7 +128,7 @@ function locatePatterns(hex) {
 	for(let i = 1 ;; i++){
 	    locateNextPatterns(i);
 	    total += levelMap.get(i+1).size;
-	    console.log(`locateNextPatterns: ${i+1} ${levelMap.get(i+1).size} ${total} END`);
+	    console.log(`locateNextPatterns: level ${i+1} count ${levelMap.get(i+1).size}`);
 	    if (levelMap.get(i).size == 0)
 		    break;
 	}
@@ -167,7 +167,7 @@ function wobblerandom(hex, len) {
 	}
 
 	// Pick a random string to replace
-	//index = Math.floor(Math.random()*map.size);
+	// index = Math.floor(Math.random()*map.size);
 	var index = 0; //replace the first pattern of the given length
 
 	var i = 0;
@@ -186,25 +186,23 @@ function wobblerandom(hex, len) {
 
 	var new_s = randompattern(len);
 
+	// calculate the index in the hex file based on the position
 	for (let j = 0; j < f; j++) {
 		let pos = p[j];
 		//console.log(pos)
 		let i = 0;
 		let k = 0;
 		while (pos > 0) {
-			i = i + 3;
+			i = i + 3; // each hex number is 3 characters
 			pos = pos - 1;
 			k = k + 1;
 			if (k == 16) {
-				i = i + 5;
+				i = i + 5; // five additional characters at the end of each line "< b r > return"
 				k = 0;
 			}
 		}
-		//console.log(new_s)
-		//console.log(new_s.length)
-		//console.log(i)
-		//console.log(hex.substring(0, i))
-		//console.log(hex.substring(i - 1 + new_s.length));
+
+		// replace the pattern at the index with the new string
 		hex = hex.substring(0, i) + new_s + hex.substring(i + new_s.length);
 		//break;
 	}
