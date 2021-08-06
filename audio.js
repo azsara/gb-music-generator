@@ -15,14 +15,18 @@ function bufferToHex(buffer) {
 }
 
 let Pattern = class {
-    constructor(p) {
-	    this.freq = 1;
+    constructor(p, l) {
+	        this.level = l;
+	        this.freq = 1;
 		this.pos = [];
 		this.pos.push(p); 
 	}
         incr(p) {
+	    // Skip the overlapping patterns 
+	    if (p >= this.pos[this.freq - 1] + this.level) {
 	        this.pos.push(p);
 	        this.freq = this.freq + 1;
+	    }
 	}
         getf() {
 	        return this.freq;
@@ -34,20 +38,22 @@ let Pattern = class {
 
 var levelMap = new Map(); //Empty Map
 var splited;
+var hexNew = "";
+var hexNew1 = "";
 
 function locateOnePatterns() {
 
     var map = new Map();
 
-	console.log("locateOnePatterns BEGIN");
+    // console.log("locateOnePatterns BEGIN");
 	
 	for (let i = 0; i < splited.length; i++) {
 	    var key = splited[i];
 		if (map.has(key)) {
 		    map.get(key).incr(i);
 		} 
-        else {
-		    let p = new Pattern(i);
+		else {
+		    let p = new Pattern(i, 1);
 		    map.set(key, p);
 		}
 	}
@@ -61,13 +67,14 @@ function locateOnePatterns() {
 		    map.delete(key);
 		    unique += 1;
 	    } else {
-		    //console.log(`key: ${key}, value: ${f}, pos: ${p}`);
+		//console.log(`key: ${key}, value: ${f}, pos: ${p}`);
 		    repeats += 1;
 	    }
 	}
 
 	levelMap.set(1, map);
-	console.log(`locateOnePatterns: level 1 count ${repeats}`);
+
+	console.log(`Located patterns at length 1: count ${repeats}`);
 }
 
 function locateNextPatterns(level) {
@@ -87,7 +94,7 @@ function locateNextPatterns(level) {
             if (nmap.has(newkey)) {
                 nmap.get(newkey).incr(pos);
             } else {
-                let newp = new Pattern(pos);
+                let newp = new Pattern(pos, level);
                 nmap.set(newkey, newp);
             }     
 	}
@@ -103,15 +110,13 @@ function locateNextPatterns(level) {
 	        nmap.delete(key);
 	        unique += 1;
 	    } else {
-	        // console.log(`key: ${key}, value: ${f}, pos: ${p}`);
+	        //console.log(`key: ${key}, value: ${f}, pos: ${p}`);
 	        repeats += 1;
 	    }
     }
 
     levelMap.set(level + 1, nmap);
-    //console.log(`locateNextPatterns: ${level} ${unique} ${repeats}`);
-
-    //console.log("locateNextPatterns END");
+    // console.log(`Located patterns at length ${level}: count ${repeats}`);
 }
 
 function locatePatterns(hex) {
@@ -119,21 +124,21 @@ function locatePatterns(hex) {
     hex = hex.replace(/\<br\>/g,"");
     hex = hex.replace(/[\n\r]+/g, '');
     splited = hex.split(" ");
-    console.log("locateAllPatterns BEGIN");
-    console.log(hex.length);
-    console.log(splited.length);
+    // console.log("locateAllPatterns BEGIN");
+    // console.log(hex.length);
+    // console.log(splited.length);
 
 	locateOnePatterns();
 	let total = 0;
 	for(let i = 1 ;; i++){
 	    locateNextPatterns(i);
 	    total += levelMap.get(i+1).size;
-	    console.log(`locateNextPatterns: level ${i+1} count ${levelMap.get(i+1).size}`);
-	    if (levelMap.get(i).size == 0)
+	    // console.log(`locateNextPatterns: level ${i+1} count ${levelMap.get(i+1).size}`);
+	    if (levelMap.get(i+1).size == 0)
 		    break;
 	}
 
-	console.log("locateAllPatterns BEGIN");
+	console.log("Total number of patterns: ", total);
 }
 
 function randompattern(len) {
@@ -154,7 +159,7 @@ function randompattern(len) {
 		s = s.concat(new_s); //at the locations
 		s = s.concat(" "); //at the locations
 	}
-	console.log(`new pattern: ${s}`);
+	// console.log(`new pattern: ${s}`);
 	return s;
 }
 
@@ -167,48 +172,69 @@ function wobblerandom(hex, len) {
 	}
 
 	// Pick a random string to replace
-	// index = Math.floor(Math.random()*map.size);
-	var index = 0; //replace the first pattern of the given length
+	// var index = 0; //replace the first pattern of the given length
+	var index = Math.floor(Math.random()*map.size);
+	// console.log("index", index);
 
 	var i = 0;
 	var indexkey = '';
 	for (const [key,value] of map){
-		if (i != index) {
-			i = i + 1;
+		if (i == index) {
+		    indexkey = key;
 		}
-		indexkey = key;
+		i = i + 1;
 	}
 
 	var f = map.get(indexkey).getf();
 	var p = map.get(indexkey).getp();
-
-	console.log(`replace pattern: ${indexkey} at ${p}`);
-
 	var new_s = randompattern(len);
 
-	// calculate the index in the hex file based on the position
-	for (let j = 0; j < f; j++) {
-		let pos = p[j];
-		//console.log(pos)
-		let i = 0;
-		let k = 0;
-		while (pos > 0) {
-			i = i + 3; // each hex number is 3 characters
-			pos = pos - 1;
-			k = k + 1;
-			if (k == 16) {
-				i = i + 5; // five additional characters at the end of each line "< b r > return"
-				k = 0;
-			}
-		}
+        console.log(`Replace pattern: ${indexkey} with ${new_s} at ${f} locations: ${p}`);
 
-		// replace the pattern at the index with the new string
-		hex = hex.substring(0, i) + new_s + hex.substring(i + new_s.length);
-		//break;
+	for (let j = 0; j < f; j++) {
+	    for (let k = 0; k < len; k++) {
+		let pos = p[j];
+		splited[pos + k] = new_s.substring(k*3, k*3+2);
+	    }
 	}
-	console.log(hex)
+
+	for (let j = 0; j < splited.length; j++) {
+	    hexNew = hexNew.concat(splited[j]);
+	    hexNew1 = hexNew1.concat(splited[j]);
+	    if (j == splited.length - 1) 
+		break;
+	    hexNew = hexNew.concat(" ");
+	    if (j % 16 == 15) {
+		hexNew = hexNew.concat("<br>");
+		hexNew = hexNew.concat("\n");
+	    }
+	}
 }
 
+function compareHex(a, b, len)
+{
+    var i = 0;
+    var j = 0;
+    var result1 = "";
+    var result2 = "";
+
+    if (a.length != b.length) {
+	console.log(`length is difference, ${a.length}, ${b.length}`);
+	return;
+    }
+
+    while (i < b.length) {
+	if (a[i] != b[i]) {
+	    result1 += a[i];
+	    result2 += b[i];
+	}
+	i++
+    }
+    console.log("Diff length", result1.length);
+    console.log("Old", result1);
+    console.log("New", result2);
+    return;
+}
 
 // This loads the mod file from disk, via an http request.
 // Don't forget to run a local webserver! python -m http.server
@@ -218,77 +244,56 @@ mod_file_request.open('get', url, true);
 
 // XMLHttpRequest can automatically convert our data into an ArrayBuffer
 mod_file_request.responseType = 'arraybuffer';
-console.log("Hello1");
+
 // The loading happens in a callback function, so it doesn't stop things from
 // happening on the page while the file loads.
 mod_file_request.onload = function(event){
 	//import .mod file
 	let trackerData = mod_file_request.response;
-	console.log("Hello2");
-	console.log(trackerData);
+
 	// If this is true, then the file has been loaded as
 	// an ArrayBuffer. For more on ArrayBuffers, consult https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 	if (trackerData) {
 		// The data is put into a ArrayBuffer view of type Uint8Array
 		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 		let byteData = new Uint8Array(trackerData);
-		console.log('Hello4');
-		console.log('Hello5')
 		// This is a fixed-length array of 8-bit numbers.
-
 
 		// This is just here to display the data on the page.
 		let hex = bufferToHex(byteData)
 		document.getElementById("hexx").innerHTML = hex;
-		// Print the data to the console.
-		//console.log(hex);
-		//console.log(parseInt("0x"+hex[0]+hex[1]));
+
 		// 1. locate the music pattern data
 		locatePatterns(hex);
 
 		// 2. edit the music pattern data
 		// Find the size of file
-		wobblerandom(hex, 2) //replace pattern with length 2
-
-		// console.log(hex[hex.length-1]);
-		// console.log(hex[hex.length-2]);
-		/*
-		let s = ''
-		// TBD(Length of the new pattern)
-		for(let i = 0; i<11;i++){
-			function decimalToHexString(number)
-			{
-			if (number < 0)
-			{
-				number = 0xFFFFFFFF + number + 1;
-			}
-			console.log(number);
-			return number.toString(16).toUpperCase();
-			}
-			let new_s = decimalToHexString(Math.floor(Math.random()*255));
-			if(new_s.length == 1){
-				new_s = new_s.concat("0")
-			}
-			s = s.concat(new_s);
-			s = s.concat(" ");
-			
-		}
-		console.log(s);
-		console.log(parseInt("0x"+s[0]+s[1]));
-		// Replace the beginning of hex with random string
-		//TBD (Replace location)
-		hex = s + hex.substring(s.length);
-		*/
-
-		// For random numbers, try Math.random()
-		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
+		let len = 4; //replace a pattern with length 4
+		wobblerandom(hex, len);
+		//compareHex(hex, hexNew, len); //compare the old and new file data and print the difference
+		hex = hexNew;
 
 		// 3 display the new file data
-		// console.log(hex);
+		console.log(hex);
+
 		// 4. we won't write it out to disk yet, because that's actually going to be a separate part of the system
 		// Though if you really want to write it out to a file to listen to, you can.
+
+		function hexStringToByte(str) {
+		    if (!str) {
+			return new Uint8Array();
+		    }
+
+		    var a = [];
+		    for (var i = 0, len = str.length; i < len; i+=2) {
+			a.push(parseInt(str.substr(i,2),16));
+		    }
+
+		    return new Uint8Array(a);
+		}
+
+		download(new Blob([hexStringToByte(hexNew1)]), "ADpickup-1.mod", "application/octet-stream");
 	}
 }
 mod_file_request.send();
 console.log(mod_file_request);
-console.log("Hello3");
